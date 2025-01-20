@@ -55,16 +55,14 @@ lemma sSup_disjoint {α : Type*} [CompleteLattice α] (a b : Set α) (hd : Disjo
 
 
 
-#check Finset.prod
 
 
 
 
+variable {α β ι : Type*} [DecidableEq ι] [DecidableEq α]
 
-variable {α β ι : Type*} [DecidableEq ι] [DecidableEq α] {f : ι → α} {g : α → β}
-
-/-- If the images of `f` only overlap where `g (f i) = 1` , then `g (f j) = 1` whenever `g (f j) = g (f n)` for `n ≠ j`.-/
-lemma filter_erase_of_pairwiseOne [CommMonoid β]
+@[to_additive]
+private lemma filter_erase_of_pairwiseOne [CommMonoid β] {f : ι → α} {g : α → β}
     {n : ι} {I : Finset ι} (hn : n ∈ I)
     (hf : (I.toSet).Pairwise fun i j => f i = f j → g (f i) = 1) :
     ∀ j ∈ (filter (fun i => f i = f n) I).erase n, g (f j) = 1 := by
@@ -72,30 +70,47 @@ lemma filter_erase_of_pairwiseOne [CommMonoid β]
   simp only [mem_erase, ne_eq, mem_filter] at hx
   exact hf hx.2.1 hn hx.1 hx.2.2
 
-@[to_additive (attr := simp)]
-lemma prod_filter_of_pairwiseOne [CommMonoid β]
+/-- If the images of `f` only overlap where `g (f i) = c` , then `g (f j) = c` whenever `g (f j) = g (f n)` for some `n ≠ j`.-/
+lemma filter_erase_of_pairwise [CommMonoid β] {f : ι → α} {g : α → β}
+    {n : ι} {I : Finset ι} (hn : n ∈ I) (c : β)
+    (hf : (I.toSet).Pairwise fun i j => f i = f j → g (f i) = c) :
+    ∀ j ∈ (filter (fun i => f i = f n) I).erase n, g (f j) = c := by
+  intro x hx
+  simp only [mem_erase, ne_eq, mem_filter] at hx
+  exact hf hx.2.1 hn hx.1 hx.2.2
+
+@[to_additive]
+lemma prod_filter_of_pairwiseOne [CommMonoid β] {f : ι → α} {g : α → β}
     {n : ι} {I : Finset ι} (hn : n ∈ I)
-    (hf : (I : Set ι).Pairwise fun i j => f i = f j → g (f i) = 1) : ∏ j ∈ filter (fun j => f j = f n) I, g (f j) = g (f n) := by
+    (hf : (I.toSet).Pairwise fun i j => f i = f j → g (f i) = 1) : ∏ j ∈ filter (fun j => f j = f n) I, g (f j) = g (f n) := by
   rw [← mul_one (g (f n))]
   rw [← (prod_eq_one (filter_erase_of_pairwiseOne hn hf))]
   rw [← (Finset.mul_prod_erase (filter (fun j => f j = f n) I) (fun i => g (f i))
     <| mem_filter.mpr ⟨hn , by rfl⟩)]
 
-/-- If the images of `f`  on `I` only overlap where `g (f i) = 1` , then `f` can move inside the binder
-of `∏ i in I, g (f i)`.-/
--- @[to_additive (attr := simp)]
-lemma prod_image_of_pairwiseOne [CommMonoid β] {I : Finset ι}
+/-- A version of `Finset.prod_map` and `Finset.prod_image`.
+If the images of `f`  on `I` only overlap where `g (f i) = 1` , then `I.image f` can move inside
+the binder of `∏ i in I, g (f i)`.-/
+@[to_additive (attr := simp)
+"/-- A version of `Finset.sum_map` and `Finset.sum_image`.
+If the images of `f`  on `I` only overlap where `g (f i) = 0` , then `I.image f` can move inside
+the binder of `∏ i in I, g (f i)`.-/"]
+lemma prod_image_of_pairwiseOne [CommMonoid β] {f : ι → α} {g : α → β} {I : Finset ι}
     (hf : (I.toSet).Pairwise fun i j => f i = f j → g (f i) = 1) :
     ∏ s in I.image f, g s = ∏ i in I, g (f i) := by
   rw [prod_image']
   exact fun n hnI => (prod_filter_of_pairwiseOne hnI hf).symm
 
--- @[to_additive (attr := simp)]
-/-- If the images of `f` are disjoint on `I`, then `f` can move inside the binder
+/-- A version of `Finset.prod_map` and `Finset.prod_image`.
+If the images of `f` are disjoint on `I`, then `I.Image f` can move inside the binder
 of `∏ i in I, g (f i)`.-/
+@[to_additive (attr := simp)
+"If the images of `f` are disjoint on `I`, then `I.image f` can move inside the binder in
+of `∑ i ∈ I, g (f i)`."
+]
 lemma Finset.prod_image_of_disjoint {α β : Type*} [CommMonoid β] [PartialOrder α] [OrderBot α] [DecidableEq α]
-    [CommMonoid β] {g : α → β}
-    (hg_bot : g ⊥ = 1) {f : ι → α} {I : Finset ι} (hf_disj : (I : Set ι).PairwiseDisjoint f) :
+    [CommMonoid β] {f : ι → α} {g : α → β}
+    (hg_bot : g ⊥ = 1) {I : Finset ι} (hf_disj : (I : Set ι).PairwiseDisjoint f) :
     ∏ s in I.image f, g s = ∏ i in I, g (f i) := by
   refine prod_image_of_pairwiseOne <| hf_disj.imp fun i j (hdisj : Disjoint _ _) hfij => ?_
   rw [← hfij, disjoint_self] at hdisj
